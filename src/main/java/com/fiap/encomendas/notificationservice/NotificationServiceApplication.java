@@ -1,9 +1,9 @@
-package com.alex.notification_service;
+package com.fiap.encomendas.notificationservice;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.fiap.notificationservice")
 public class NotificationServiceApplication {
 
 	public static void main(String[] args) {
