@@ -7,17 +7,17 @@
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>3.5.6</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath/>
 	</parent>
 
-	<groupId>com.alex</groupId>
+	<groupId>com.fiap</groupId>
 	<artifactId>notification-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>notification-service</name>
 	<description>Microsserviço responsável pelo envio de notificações aos moradores (e-mail, SMS, push), persistência do histórico de notificações e integração com provedores externos via Kafka e adaptadores de envio.</description>
 >
     <properties>
-        <java.version>21</java.version>
+        <java.version>17</java.version>
         <spring.boot.version>3.2.2</spring.boot.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
     </properties>
