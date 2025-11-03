@@ -2,14 +2,16 @@
 CREATE TABLE IF NOT EXISTS notifications (
     id BIGSERIAL PRIMARY KEY,
     parcel_id BIGINT NOT NULL,
-    recipient_name VARCHAR(255),
+    resident_name VARCHAR(255),
     apartment VARCHAR(50),
     message TEXT,
-    channel VARCHAR(50) NOT NULL, -- e.g., EMAIL, SMS, PUSH
-    status VARCHAR(50) NOT NULL DEFAULT 'PENDING', -- PENDING, SENT, FAILED
+    channel VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    contact VARCHAR(255),
     sent_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    acknowledged BOOLEAN DEFAULT FALSE
 );
 
 -- Índice para consultas por parcel_id

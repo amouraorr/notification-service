@@ -1,4 +1,4 @@
-package com.fiap.notificationservice.infrastructure.config.swagger.security;
+package com.fiap.notificationservice.infrastructure.config.security;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.context.annotation.Bean;

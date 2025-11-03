@@ -9,76 +9,68 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
-import java.util.Locale;
 import java.util.UUID;
 
-/**
- * Caso de uso que processa eventos de encomenda: cria e persiste uma Notification e dispara o envio.
- */
 @Service
 public class ProcessParcelEventUseCase {
+
     private static final Logger log = LoggerFactory.getLogger(ProcessParcelEventUseCase.class);
 
-    private final NotificationRepository notificationRepository;
-    private final NotificationSender notificationSender;
+    private final NotificationRepository repository;
+    private final NotificationSender sender;
 
-    public ProcessParcelEventUseCase(NotificationRepository notificationRepository, NotificationSender notificationSender) {
-        this.notificationRepository = notificationRepository;
-        this.notificationSender = notificationSender;
+    public ProcessParcelEventUseCase(NotificationRepository repository, NotificationSender sender) {
+        this.repository = repository;
+        this.sender = sender;
     }
 
     /**
-     * Processa o evento de encomenda vindo do Parcel Service.
-     * Retorna a Notification persistida, ou null se o evento for inválido.
-     *
-     * Passos aplicados:
-     * - valida contact (telefone/email) obrigatório para envio
-     * - normaliza channel (EMAIL,SMS,PUSH) com default PUSH
-     * - cria objeto Notification, persiste e solicita envio
+     * Constrói e envia (via NotificationSender) a Notification a partir do ParcelEventDto.
+     * NotificationSender (NotificationSenderAdapter) é responsável por persistir e publicar em Kafka.
      */
-    public Notification execute(ParcelEventDto event) {
-        if (event == null) {
-            log.warn("Received null parcel event, ignoring");
-            return null;
+    public void execute(ParcelEventDto dto) {
+        if (dto == null) {
+            log.warn("ParcelEventDto nulo — ignorando");
+            return;
         }
 
-        // validações básicas do negócio
-        if (event.contact == null || event.contact.trim().isEmpty()) {
-            log.warn("Parcel event has no contact; residentName={} apartment={}. Skipping notification.", event.residentName, event.apartment);
-            return null;
-        }
-
-        String channel = (event.channel == null || event.channel.trim().isEmpty()) ? "PUSH" : event.channel.trim().toUpperCase(Locale.ROOT);
-        // aceita apenas canais conhecidos; default PUSH
-        if (!"EMAIL".equals(channel) && !"SMS".equals(channel) && !"PUSH".equals(channel)) {
-            log.warn("Unknown channel '{}', defaulting to PUSH", event.channel);
-            channel = "PUSH";
-        }
-
-        log.info("Processando parcel event for resident={} apt={} via {}", event.residentName, event.apartment, channel);
-        Notification notification = new Notification();
-        notification.setId(UUID.randomUUID());
-        notification.setResidentName(event.residentName);
-        notification.setApartment(event.apartment);
-        notification.setContact(event.contact);
-        notification.setChannel(channel);
-        String desc = event.description != null ? event.description : "encomenda";
-        notification.setMessage(String.format("Você recebeu uma %s. Destinatário: %s, apto: %s", desc, event.residentName, event.apartment));
-        notification.setCreatedAt(event.receivedAt != null ? event.receivedAt : OffsetDateTime.now());
-        notification.setAcknowledged(false);
-
-        // persiste (porta)
-        Notification saved = notificationRepository.save(notification);
-
-        // envia (porta) - adapter se responsabiliza por atualizar sentAt e publicar se for o caso
         try {
-            notificationSender.send(saved);
-        } catch (Exception ex) {
-            // deixar persistido e logar o erro; envio pode ser re-tentado por outros mecanismos se necessário
-            log.error("Erro ao solicitar envio de notification id={}", saved.getId(), ex);
-        }
+            Notification n = new Notification();
+            n.setId(UUID.randomUUID());
+            n.setResidentName(dto.residentName);
+            n.setApartment(dto.apartment);
+            n.setContact(dto.contact);
+            String channel = dto.channel;
+            n.setChannel(channel == null || channel.isBlank() ? "PUSH" : channel.toUpperCase());
+            n.setMessage(buildMessage(dto));
+            n.setCreatedAt(dto.receivedAt != null ? dto.receivedAt : OffsetDateTime.now());
+            n.setAcknowledged(false);
 
-        log.info("Notification created and send requested id={}", saved.getId());
-        return saved;
+            sender.send(n);
+
+            log.info("Notification created and sent for resident={} apt={}", n.getResidentName(), n.getApartment());
+        } catch (Exception e) {
+            log.error("Erro ao processar ParcelEventDto", e);
+
+            try {
+                Notification fallback = new Notification();
+                fallback.setId(UUID.randomUUID());
+                fallback.setResidentName(dto.residentName);
+                fallback.setApartment(dto.apartment);
+                fallback.setContact(dto.contact);
+                fallback.setChannel(dto.channel == null ? "PUSH" : dto.channel.toUpperCase());
+                fallback.setMessage(buildMessage(dto));
+                fallback.setCreatedAt(dto.receivedAt != null ? dto.receivedAt : OffsetDateTime.now());
+                fallback.setAcknowledged(false);
+                repository.save(fallback);
+            } catch (Exception ex) {
+                log.error("Falha no fallback ao salvar Notification", ex);
+            }
+        }
+    }
+
+    private String buildMessage(ParcelEventDto dto) {
+        String desc = dto.description != null ? dto.description : "";
+        return "Encomenda recebida para " + dto.residentName + " apto " + dto.apartment + (desc.isBlank() ? "" : " — " + desc);
     }
 }
