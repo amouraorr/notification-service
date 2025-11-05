@@ -14,6 +14,6 @@ public class MockProvider {
 
     public void send(Notification notification) {
         // Em local, apenas logar. Em produção aqui seria integração com fornecedor externo.
-        log.info("MockProvider sending via {} to {}: {}", notification.getChannel(), notification.getContact(), notification.getMessage());
+        log.info("MockProvider enviando via {} to {}: {}", notification.getChannel(), notification.getContact(), notification.getMessage());
     }
 }
