@@ -46,12 +46,15 @@ public class ProcessParcelEventUseCase {
             n.setCreatedAt(dto.receivedAt != null ? dto.receivedAt : OffsetDateTime.now());
             n.setAcknowledged(false);
 
+            log.debug("Notificação preparada (antes do envio): id={} resident={} apt={} contact={} channel={} message={} createdAt={}",
+                    n.getId(), n.getResidentName(), n.getApartment(), n.getContact(), n.getChannel(), n.getMessage(), n.getCreatedAt());
+
             sender.send(n);
 
-            log.info("Notification created and sent for resident={} apt={}", n.getResidentName(), n.getApartment());
+            log.info("Notificação criada e enviada para o residente.={} apt={}", n.getResidentName(), n.getApartment());
         } catch (Exception e) {
-            log.error("Erro ao processar ParcelEventDto", e);
-
+            log.error("Erro ao processar ParcelEventDto — tentando fallback. DTO resident={} apartment={} contact={} channel={} description={}",
+                    dto.residentName, dto.apartment, dto.contact, dto.channel, dto.description, e);
             try {
                 Notification fallback = new Notification();
                 fallback.setId(UUID.randomUUID());
@@ -63,6 +66,7 @@ public class ProcessParcelEventUseCase {
                 fallback.setCreatedAt(dto.receivedAt != null ? dto.receivedAt : OffsetDateTime.now());
                 fallback.setAcknowledged(false);
                 repository.save(fallback);
+                log.info("Notificação de fallback salva: id={} resident={} apt={}", fallback.getId(), fallback.getResidentName(), fallback.getApartment());
             } catch (Exception ex) {
                 log.error("Falha no fallback ao salvar Notification", ex);
             }
