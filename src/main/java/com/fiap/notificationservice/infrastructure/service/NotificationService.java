@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.OffsetDateTime;
@@ -16,7 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Service que processa o payload do Kafka (map) e tenta enviar via provider mock, persistir e publicar evento de saída.
+ * Service que processa o payload do Kafka (map) e enviar via provider mock, persistir e publicar evento de saída.
  */
 @Service
 public class NotificationService {
@@ -36,14 +37,14 @@ public class NotificationService {
         this.rest = new RestTemplate();
         this.objectMapper = objectMapper;
         this.kafkaTemplate = kafkaTemplate;
-        this.externalProvidersBase = env.getProperty("EXTERNAL_PROVIDERS_MOCK", "http://localhost:9000");
+        this.externalProvidersBase = env.getProperty("EXTERNAL_PROVIDERS_MOCK", "http://mock-providers:9000");
     }
 
     public void handleParcelEvent(Map<String, Object> event) {
         Long parcelId = event.get("parcelId") == null ? null : Long.valueOf(String.valueOf(event.get("parcelId")));
-        String channel = event.getOrDefault("channel", "PUSH").toString();
-        String contact = event.getOrDefault("contact", "").toString();
-        String desc = event.getOrDefault("description", "").toString();
+        String channel = event.getOrDefault("channel", "PUSH") == null ? "PUSH" : event.getOrDefault("channel", "PUSH").toString();
+        String contactRaw = event.getOrDefault("contact", "") == null ? "" : event.getOrDefault("contact", "").toString();
+        String desc = event.getOrDefault("description", "") == null ? "" : event.getOrDefault("description", "").toString();
 
         Notification n = new Notification();
 
@@ -52,9 +53,13 @@ public class NotificationService {
         n.setParcelId(parcelId);
         n.setResidentName(String.valueOf(event.getOrDefault("residentName", "")));
         n.setApartment(String.valueOf(event.getOrDefault("apartment", "")));
+
+        String contact = contactRaw != null && !contactRaw.isBlank() ? contactRaw : null;
         n.setContact(contact);
-        n.setChannel(channel);
-        n.setDescription(desc);
+
+        n.setChannel(channel != null ? channel.toUpperCase() : "PUSH");
+
+        n.setMessage(buildMessage(n.getResidentName(), n.getApartment(), desc));
 
         OffsetDateTime createdAt = parseReceivedAt(event.get("receivedAt"));
         if (createdAt == null) {
@@ -62,36 +67,53 @@ public class NotificationService {
         }
         n.setCreatedAt(createdAt);
 
+        n.setAcknowledged(false);
+
+        n.setStatus("PENDING");
+        n.setResultDetail(null);
+
         try {
-            // Simula envio via provider mock
-            if ("SMS".equalsIgnoreCase(channel)) {
-                var resp = rest.postForEntity(externalProvidersBase + "/sms", Map.of("to", contact, "message", desc), String.class);
-                n.setStatus("SENT");
-                n.setResultDetail("sms:" + resp.getStatusCodeValue());
-            } else if ("EMAIL".equalsIgnoreCase(channel)) {
-                var resp = rest.postForEntity(externalProvidersBase + "/email", Map.of("to", contact, "subject", "Nova encomenda", "body", desc), String.class);
-                n.setStatus("SENT");
-                n.setResultDetail("email:" + resp.getStatusCodeValue());
+
+            if ("SMS".equalsIgnoreCase(channel) || "EMAIL".equalsIgnoreCase(channel)) {
+                if (contact == null) {
+                    log.warn("Payload para parcelId={} channel={} não contém contact — pulando envio externo e persistindo PENDING", parcelId, channel);
+                    n.setStatus("PENDING");
+                    n.setResultDetail("no-contact");
+                } else {
+
+                    if ("SMS".equalsIgnoreCase(channel)) {
+                        var resp = rest.postForEntity(externalProvidersBase + "/sms", Map.of("to", contact, "message", n.getMessage()), String.class);
+                        n.setStatus("SENT");
+                        n.setResultDetail("sms:" + resp.getStatusCodeValue());
+                    } else {
+                        var resp = rest.postForEntity(externalProvidersBase + "/email", Map.of("to", contact, "subject", "Nova encomenda", "body", n.getMessage()), String.class);
+                        n.setStatus("SENT");
+                        n.setResultDetail("email:" + resp.getStatusCodeValue());
+                    }
+                }
             } else {
-                // PUSH / default: apenas registra e considera como SENT
+
                 n.setStatus("SENT");
                 n.setResultDetail("push:ok");
             }
-        } catch (Exception ex) {
+        } catch (RestClientException ex) {
+
             log.error("Erro ao enviar notificação para parcelId={} contact={} channel={}", parcelId, contact, channel, ex);
             n.setStatus("FAILED");
-            n.setResultDetail(ex.getMessage());
+            n.setResultDetail(ex.getClass().getSimpleName() + ":" + ex.getMessage());
+        } catch (Exception ex) {
+            log.error("Erro inesperado ao enviar notificação para parcelId={} contact={} channel={}", parcelId, contact, channel, ex);
+            n.setStatus("FAILED");
+            n.setResultDetail(ex.getClass().getSimpleName() + ":" + ex.getMessage());
         }
 
-        // Persiste a notification
         try {
             repository.save(n);
         } catch (Exception ex) {
-            // Informação adicional no log para diagnóstico
-            log.error("Falha ao salvar Notification (id={} parcelId={}). Verifique mapeamento JPA/schema e se a coluna id aceita UUID. Exception:", n.getId(), parcelId, ex);
+
+            log.error("Falha ao salvar Notification (id={} parcelId={}). Verifique mapeamento JPA/schema e se a coluna id aceita UUID.", n.getId(), parcelId, ex);
         }
 
-        // Publica evento de saída para tópico de notifications.sent (auditoria)
         try {
             Map<String, Object> out = Map.of(
                     "eventType", "NOTIFICATION_SENT",
@@ -109,9 +131,6 @@ public class NotificationService {
         }
     }
 
-    /**
-     * Interpretar diferentes formatos possíveis do campo receivedAt enviado no payload (String ISO ou OffsetDateTime serializado).
-     */
     private OffsetDateTime parseReceivedAt(Object receivedAtObj) {
         if (receivedAtObj == null) return null;
         try {
@@ -129,5 +148,12 @@ public class NotificationService {
             log.warn("Erro inesperado ao parsear receivedAt: '{}'", receivedAtObj, ex);
             return null;
         }
+    }
+
+    private String buildMessage(String residentName, String apartment, String desc) {
+        String rn = residentName != null ? residentName : "";
+        String ap = apartment != null ? apartment : "";
+        String d = desc != null ? desc : "";
+        return "Encomenda recebida para " + rn + " apto " + ap + (d.isBlank() ? "" : " — " + d);
     }
 }
