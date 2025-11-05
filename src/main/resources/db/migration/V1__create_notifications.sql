@@ -1,11 +1,14 @@
 -- V1: create notifications table
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
 CREATE TABLE IF NOT EXISTS notifications (
-    id BIGSERIAL PRIMARY KEY,
-    parcel_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    parcel_id BIGINT,
     resident_name VARCHAR(255),
     apartment VARCHAR(50),
     message TEXT,
-    channel VARCHAR(50) NOT NULL,
+    channel VARCHAR(50) NOT NULL DEFAULT 'PUSH', -- e.g., EMAIL, SMS, PUSH
     status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
     contact VARCHAR(255),
     sent_at TIMESTAMP WITH TIME ZONE,

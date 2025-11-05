@@ -2,13 +2,21 @@ package com.fiap.notificationservice.adapter.web.mapper;
 
 import com.fiap.notificationservice.application.dto.response.NotificationResponseDto;
 import com.fiap.notificationservice.domain.model.Notification;
-import org.mapstruct.Mapper;
+import org.springframework.stereotype.Component;
 
 /**
- * Mapper MapStruct para conversão entre Notification (domínio) e NotificationResponseDto (API).
+ * Mapper manual (componente Spring) para conversão entre Notification (domínio) e NotificationResponseDto (API).
  */
-@Mapper(componentModel = "spring")
-public interface NotificationWebMapper {
+@Component
+public class NotificationWebMapper {
 
-    NotificationResponseDto toDto(Notification notification);
+    /**
+     * Converte a entidade de domínio para o DTO de resposta da API.
+     */
+    public NotificationResponseDto toDto(Notification notification) {
+        if (notification == null) {
+            return null;
+        }
+        return NotificationResponseDto.from(notification);
+    }
 }

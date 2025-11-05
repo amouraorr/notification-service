@@ -1,4 +1,7 @@
 spring:
+  application:
+    name: notification-service
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/notificationservice_db}
     username: ${SPRING_DATASOURCE_USERNAME:notificationservice}
@@ -15,6 +18,18 @@ spring:
 
   flyway:
     enabled: true
+    locations: classpath:db/migration
+
+spring.kafka:
+  bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+  consumer:
+    group-id: notification-service-group
+    auto-offset-reset: earliest
+
+kafka:
+  topics:
+    parcels.received: ${KAFKA_TOPICS_PARCELS_RECEIVED:parcels.received}
+    notifications.sent: ${KAFKA_TOPICS_NOTIFICATIONS_SENT:notifications.sent}
 
 logging:
   level:

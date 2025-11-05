@@ -29,18 +29,31 @@ public class NotificationSenderAdapter implements NotificationSender {
 
     @Override
     public void send(Notification notification) {
-        // chama provider externo (mock)
-        mockProvider.send(notification);
 
-        // marca sentAt e persiste atualização
+        log.debug("Envio de notificação (antes do provedor): id={} resident={} apt={} contact={} channel={}",
+                notification.getId(), notification.getResidentName(), notification.getApartment(), notification.getContact(), notification.getChannel());
+
+
+        try {
+            mockProvider.send(notification);
+        } catch (Exception e) {
+            log.error("O MockProvider lançou uma exceção para a notificação id={}", notification.getId(), e);
+        }
+
         notification.setSentAt(OffsetDateTime.now());
-        repository.save(notification);
+        try {
+            repository.save(notification);
+            log.debug("A notificação persistiu após o envio.: id={}", notification.getId());
+        } catch (Exception e) {
 
-        // publica evento de notificação em Kafka
+            log.error("Falha ao salvar notification id={} após envio. Verifique o mapeamento JPA / schema do banco.", notification.getId(), e);
+
+        }
+
         try {
             producer.publish(notification);
         } catch (Exception e) {
-            log.error("Falha ao publicar notification event", e);
+            log.error("Falha ao publicar notification event id={}", notification.getId(), e);
         }
     }
 }

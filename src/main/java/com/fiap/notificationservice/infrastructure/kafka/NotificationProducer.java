@@ -25,7 +25,8 @@ public class NotificationProducer {
     private final ObjectMapper mapper;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    @Value("${notification.topic.out:notifications-out}")
+    @Value("${kafka.topics.notifications-out:notifications-out}")
+
     private String topic;
 
     public NotificationProducer(ObjectMapper mapper, @Autowired(required = false) @Nullable KafkaTemplate<String, String> kafkaTemplate) {
@@ -39,7 +40,7 @@ public class NotificationProducer {
 
             if (kafkaTemplate != null) {
 
-                CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, payload);
+                CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, notification.getId() != null ? notification.getId().toString() : null, payload);
                 future.whenComplete((result, ex) -> {
                     if (ex != null) {
                         log.error("Falha ao publicar notificação id={} no tópico={}", notification.getId(), topic, ex);
