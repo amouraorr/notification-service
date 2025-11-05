@@ -83,7 +83,7 @@ public class NotificationService {
             n.setResultDetail(ex.getMessage());
         }
 
-        // Persiste a notification 
+        // Persiste a notification
         try {
             repository.save(n);
         } catch (Exception ex) {
