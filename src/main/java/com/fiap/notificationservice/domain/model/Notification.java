@@ -7,6 +7,7 @@ import java.util.UUID;
  * Entidade de domínio Notification.
  */
 public class Notification {
+
     private UUID id;
     private Long parcelId;
     private String residentName;
@@ -15,10 +16,11 @@ public class Notification {
     private String channel; // EMAIL,SMS,PUSH
     private String message;
     private String description;
-    private String status;
+    private String status; // PENDING, SENT, FAILED
     private String resultDetail;
     private OffsetDateTime createdAt;
     private OffsetDateTime sentAt;
+    private OffsetDateTime updatedAt;
     private boolean acknowledged;
 
     public Notification(UUID id,
@@ -33,6 +35,7 @@ public class Notification {
                         String resultDetail,
                         OffsetDateTime createdAt,
                         OffsetDateTime sentAt,
+                        OffsetDateTime updatedAt,
                         boolean acknowledged) {
         this.id = id;
         this.parcelId = parcelId;
@@ -46,6 +49,7 @@ public class Notification {
         this.resultDetail = resultDetail;
         this.createdAt = createdAt;
         this.sentAt = sentAt;
+        this.updatedAt = updatedAt;
         this.acknowledged = acknowledged;
     }
 
@@ -86,6 +90,9 @@ public class Notification {
 
     public OffsetDateTime getSentAt() { return sentAt; }
     public void setSentAt(OffsetDateTime sentAt) { this.sentAt = sentAt; }
+
+    public OffsetDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(OffsetDateTime updatedAt) { this.updatedAt = updatedAt; }
 
     public boolean isAcknowledged() { return acknowledged; }
     public void setAcknowledged(boolean acknowledged) { this.acknowledged = acknowledged; }

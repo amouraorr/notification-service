@@ -37,7 +37,7 @@ public class NotificationService {
         this.rest = new RestTemplate();
         this.objectMapper = objectMapper;
         this.kafkaTemplate = kafkaTemplate;
-        this.externalProvidersBase = env.getProperty("EXTERNAL_PROVIDERS_MOCK", "http://mock-providers:9000");
+        this.externalProvidersBase = env.getProperty("EXTERNAL_PROVIDERS_MOCK", "http://mock-providers");
     }
 
     public void handleParcelEvent(Map<String, Object> event) {
