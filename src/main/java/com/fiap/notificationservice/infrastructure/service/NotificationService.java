@@ -2,12 +2,16 @@ package com.fiap.notificationservice.infrastructure.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fiap.notificationservice.domain.model.Notification;
-
 import com.fiap.notificationservice.domain.port.NotificationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -53,6 +57,7 @@ public class NotificationService {
         n.setParcelId(parcelId);
         n.setResidentName(String.valueOf(event.getOrDefault("residentName", "")));
         n.setApartment(String.valueOf(event.getOrDefault("apartment", "")));
+        n.setDescription(desc);
 
         String contact = contactRaw != null && !contactRaw.isBlank() ? contactRaw : null;
         n.setContact(contact);
@@ -73,7 +78,6 @@ public class NotificationService {
         n.setResultDetail(null);
 
         try {
-
             if ("SMS".equalsIgnoreCase(channel) || "EMAIL".equalsIgnoreCase(channel)) {
                 if (contact == null) {
                     log.warn("Payload para parcelId={} channel={} não contém contact — pulando envio externo e persistindo PENDING", parcelId, channel);
@@ -81,23 +85,47 @@ public class NotificationService {
                     n.setResultDetail("no-contact");
                 } else {
 
+                    HttpHeaders headers = new HttpHeaders();
+                    headers.setContentType(MediaType.APPLICATION_JSON);
+
                     if ("SMS".equalsIgnoreCase(channel)) {
-                        var resp = rest.postForEntity(externalProvidersBase + "/sms", Map.of("to", contact, "message", n.getMessage()), String.class);
-                        n.setStatus("SENT");
-                        n.setResultDetail("sms:" + resp.getStatusCodeValue());
+                        String url = externalProvidersBase + "/sms";
+                        Map<String, Object> body = Map.of("to", contact, "message", n.getMessage());
+                        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+                        try {
+                            ResponseEntity<String> resp = rest.postForEntity(url, request, String.class);
+                            n.setStatus("SENT");
+                            n.setResultDetail("sms:" + resp.getStatusCodeValue());
+                            n.setSentAt(OffsetDateTime.now());
+                        } catch (HttpClientErrorException hce) {
+                            log.error("HTTP error ao enviar SMS parcelId={} contact={} url={} status={}", parcelId, contact, url, hce.getStatusCode(), hce);
+                            n.setStatus("FAILED");
+                            String bodyStr = hce.getResponseBodyAsString();
+                            n.setResultDetail("http:" + hce.getStatusCode().value() + ":" + (bodyStr != null ? truncate(bodyStr, 300) : ""));
+                        }
                     } else {
-                        var resp = rest.postForEntity(externalProvidersBase + "/email", Map.of("to", contact, "subject", "Nova encomenda", "body", n.getMessage()), String.class);
-                        n.setStatus("SENT");
-                        n.setResultDetail("email:" + resp.getStatusCodeValue());
+                        String url = externalProvidersBase + "/email";
+                        Map<String, Object> body = Map.of("to", contact, "subject", "Nova encomenda", "body", n.getMessage());
+                        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+                        try {
+                            ResponseEntity<String> resp = rest.postForEntity(url, request, String.class);
+                            n.setStatus("SENT");
+                            n.setResultDetail("email:" + resp.getStatusCodeValue());
+                            n.setSentAt(OffsetDateTime.now());
+                        } catch (HttpClientErrorException hce) {
+                            log.error("HTTP error ao enviar EMAIL parcelId={} contact={} url={} status={}", parcelId, contact, url, hce.getStatusCode(), hce);
+                            n.setStatus("FAILED");
+                            String bodyStr = hce.getResponseBodyAsString();
+                            n.setResultDetail("http:" + hce.getStatusCode().value() + ":" + (bodyStr != null ? truncate(bodyStr, 300) : ""));
+                        }
                     }
                 }
             } else {
-
                 n.setStatus("SENT");
                 n.setResultDetail("push:ok");
+                n.setSentAt(OffsetDateTime.now());
             }
         } catch (RestClientException ex) {
-
             log.error("Erro ao enviar notificação para parcelId={} contact={} channel={}", parcelId, contact, channel, ex);
             n.setStatus("FAILED");
             n.setResultDetail(ex.getClass().getSimpleName() + ":" + ex.getMessage());
@@ -110,7 +138,6 @@ public class NotificationService {
         try {
             repository.save(n);
         } catch (Exception ex) {
-
             log.error("Falha ao salvar Notification (id={} parcelId={}). Verifique mapeamento JPA/schema e se a coluna id aceita UUID.", n.getId(), parcelId, ex);
         }
 
@@ -121,7 +148,7 @@ public class NotificationService {
                     "notificationId", n.getId(),
                     "status", n.getStatus(),
                     "resultDetail", n.getResultDetail(),
-                    "sentAt", OffsetDateTime.now().toString()
+                    "sentAt", n.getSentAt() != null ? n.getSentAt().toString() : OffsetDateTime.now().toString()
             );
             String payload = objectMapper.writeValueAsString(out);
             String topic = java.util.Optional.ofNullable(System.getenv("KAFKA_TOPICS_NOTIFICATIONS_OUT")).orElse("notifications.sent");
@@ -155,5 +182,10 @@ public class NotificationService {
         String ap = apartment != null ? apartment : "";
         String d = desc != null ? desc : "";
         return "Encomenda recebida para " + rn + " apto " + ap + (d.isBlank() ? "" : " — " + d);
+    }
+
+    private String truncate(String s, int max) {
+        if (s == null) return null;
+        return s.length() <= max ? s : s.substring(0, max) + "...";
     }
 }
