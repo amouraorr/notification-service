@@ -12,9 +12,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 /**
  * API pública do serviço de notificações para consulta e confirmação (ack) por morador.
  */
+@Tag(name = "Notification", description = "Endpoints públicos para consulta e confirmação de notificações")
 @RestController
 @RequestMapping("/api/notification")
 public class NotificationApiController {
@@ -33,6 +37,7 @@ public class NotificationApiController {
         this.mapper = mapper;
     }
 
+    @Operation(summary = "Retorna notificação por ID")
     @GetMapping("/{id}")
     public ResponseEntity<NotificationResponseDto> getById(@PathVariable("id") UUID id) {
         Notification n = repository.findById(id);
@@ -42,6 +47,7 @@ public class NotificationApiController {
         return ResponseEntity.ok(mapper.toDto(n));
     }
 
+    @Operation(summary = "Confirma (ack) a notificação pelo ID e retorna o objeto atualizado")
     @PostMapping("/{id}/ack")
     public ResponseEntity<NotificationResponseDto> acknowledge(@PathVariable("id") UUID id) {
         Notification updated = acknowledgeUseCase.execute(id);
