@@ -11,7 +11,6 @@ public class ParcelEventDto {
     public String apartment;
     public String contact; // telefone ou email
     public String channel; // EMAIL, SMS, PUSH
-    public String description;
     public OffsetDateTime receivedAt;
 
     public ParcelEventDto() {}

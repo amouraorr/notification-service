@@ -42,7 +42,6 @@ public class ProcessParcelEventUseCase {
             n.setContact(dto.contact);
             String channel = dto.channel;
             n.setChannel(channel == null || channel.isBlank() ? "PUSH" : channel.toUpperCase());
-            n.setMessage(buildMessage(dto));
             n.setCreatedAt(dto.receivedAt != null ? dto.receivedAt : OffsetDateTime.now());
             n.setAcknowledged(false);
 
@@ -54,7 +53,7 @@ public class ProcessParcelEventUseCase {
             log.info("Notificação criada e enviada para o residente.={} apt={}", n.getResidentName(), n.getApartment());
         } catch (Exception e) {
             log.error("Erro ao processar ParcelEventDto — tentando fallback. DTO resident={} apartment={} contact={} channel={} description={}",
-                    dto.residentName, dto.apartment, dto.contact, dto.channel, dto.description, e);
+                    dto.residentName, dto.apartment, dto.contact, dto.channel, e);
             try {
                 Notification fallback = new Notification();
                 fallback.setId(UUID.randomUUID());
@@ -62,7 +61,6 @@ public class ProcessParcelEventUseCase {
                 fallback.setApartment(dto.apartment);
                 fallback.setContact(dto.contact);
                 fallback.setChannel(dto.channel == null ? "PUSH" : dto.channel.toUpperCase());
-                fallback.setMessage(buildMessage(dto));
                 fallback.setCreatedAt(dto.receivedAt != null ? dto.receivedAt : OffsetDateTime.now());
                 fallback.setAcknowledged(false);
                 repository.save(fallback);
@@ -73,8 +71,4 @@ public class ProcessParcelEventUseCase {
         }
     }
 
-    private String buildMessage(ParcelEventDto dto) {
-        String desc = dto.description != null ? dto.description : "";
-        return "Encomenda recebida para " + dto.residentName + " apto " + dto.apartment + (desc.isBlank() ? "" : " — " + desc);
-    }
 }

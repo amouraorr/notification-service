@@ -19,7 +19,6 @@ public class NotificationEntityMapper {
         e.setContact(n.getContact());
         e.setChannel(n.getChannel());
         e.setMessage(n.getMessage());
-        e.setDescription(n.getDescription());
         e.setStatus(n.getStatus());
         e.setResultDetail(n.getResultDetail());
         e.setCreatedAt(n.getCreatedAt());
@@ -39,7 +38,6 @@ public class NotificationEntityMapper {
         n.setContact(e.getContact());
         n.setChannel(e.getChannel());
         n.setMessage(e.getMessage());
-        n.setDescription(e.getMessage() != null && !e.getMessage().isEmpty() ? e.getMessage() : e.getDescription());
         n.setStatus(e.getStatus());
         n.setResultDetail(e.getResultDetail());
         n.setCreatedAt(e.getCreatedAt());

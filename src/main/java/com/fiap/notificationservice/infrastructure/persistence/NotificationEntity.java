@@ -31,9 +31,6 @@ public class NotificationEntity {
     @Column(name = "message", columnDefinition = "text")
     private String message;
 
-    @Column(name = "description", columnDefinition = "text")
-    private String description;
-
     @Column(name = "status")
     private String status;
 
@@ -97,9 +94,6 @@ public class NotificationEntity {
 
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
-
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

@@ -15,7 +15,6 @@ public class Notification {
     private String contact; // telefone/email
     private String channel; // EMAIL,SMS,PUSH
     private String message;
-    private String description;
     private String status; // PENDING, SENT, FAILED
     private String resultDetail;
     private OffsetDateTime createdAt;
@@ -44,7 +43,6 @@ public class Notification {
         this.contact = contact;
         this.channel = channel;
         this.message = message;
-        this.description = description;
         this.status = status;
         this.resultDetail = resultDetail;
         this.createdAt = createdAt;
@@ -75,9 +73,6 @@ public class Notification {
 
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
-
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
 
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }

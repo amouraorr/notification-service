@@ -57,7 +57,6 @@ public class NotificationService {
         n.setParcelId(parcelId);
         n.setResidentName(String.valueOf(event.getOrDefault("residentName", "")));
         n.setApartment(String.valueOf(event.getOrDefault("apartment", "")));
-        n.setDescription(desc);
 
         String contact = contactRaw != null && !contactRaw.isBlank() ? contactRaw : null;
         n.setContact(contact);
