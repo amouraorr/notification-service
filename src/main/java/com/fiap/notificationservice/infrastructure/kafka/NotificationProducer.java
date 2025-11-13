@@ -2,6 +2,8 @@ package com.fiap.notificationservice.infrastructure.kafka;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fiap.notificationservice.domain.model.Notification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,11 +28,17 @@ public class NotificationProducer {
     private final KafkaTemplate<String, String> kafkaTemplate;
 
     @Value("${kafka.topics.notifications-out:notifications-out}")
-
     private String topic;
 
-    public NotificationProducer(ObjectMapper mapper, @Autowired(required = false) @Nullable KafkaTemplate<String, String> kafkaTemplate) {
+    @Autowired
+    public NotificationProducer(ObjectMapper mapper,
+                                @Nullable @Autowired(required = false) KafkaTemplate<String, String> kafkaTemplate) {
         this.mapper = mapper;
+        // Registrar módulo para Java 8 Date/Time (OffsetDateTime, etc.)
+        // Se a dependência jackson-datatype-jsr310 estiver no classpath, isso garante a serialização correta.
+        this.mapper.registerModule(new JavaTimeModule());
+        this.mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
         this.kafkaTemplate = kafkaTemplate;
     }
 
@@ -40,7 +48,12 @@ public class NotificationProducer {
 
             if (kafkaTemplate != null) {
 
-                CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(topic, notification.getId() != null ? notification.getId().toString() : null, payload);
+                CompletableFuture<SendResult<String, String>> future = kafkaTemplate.send(
+                        topic,
+                        notification.getId() != null ? notification.getId().toString() : null,
+                        payload
+                );
+
                 future.whenComplete((result, ex) -> {
                     if (ex != null) {
                         log.error("Falha ao publicar notificação id={} no tópico={}", notification.getId(), topic, ex);
@@ -49,7 +62,6 @@ public class NotificationProducer {
                     }
                 });
             } else {
-
                 log.info("KafkaTemplate não configurado — publicação simulada no tópico={} payload={}", topic, payload);
             }
         } catch (JsonProcessingException e) {
