@@ -35,3 +35,10 @@ logging:
   level:
     root: INFO
     com.fiap: DEBUG
+
+  springdoc:
+    api-docs:
+      path: /v3/api-docs
+    swagger-ui:
+      path: /swagger-ui
+      enabled: true
