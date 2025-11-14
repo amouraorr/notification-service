@@ -4,9 +4,6 @@ import com.fiap.notificationservice.application.dto.response.NotificationRespons
 import com.fiap.notificationservice.domain.model.Notification;
 import org.springframework.stereotype.Component;
 
-/**
- * Mapper manual (componente Spring) para conversão entre Notification (domínio) e NotificationResponseDto (API).
- */
 @Component
 public class NotificationWebMapper {
 

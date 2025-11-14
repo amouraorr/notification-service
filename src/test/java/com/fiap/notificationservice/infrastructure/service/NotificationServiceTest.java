@@ -10,7 +10,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.OffsetDateTime;
 import java.util.Map;
@@ -32,9 +31,6 @@ class NotificationServiceTest {
     @Mock
     private org.springframework.core.env.Environment env;
 
-    @Mock
-    private RestTemplate restTemplate;
-
     private ObjectMapper objectMapper;
 
     private NotificationService service;
@@ -44,7 +40,7 @@ class NotificationServiceTest {
         MockitoAnnotations.openMocks(this);
         objectMapper = new ObjectMapper();
         when(env.getProperty(eq("EXTERNAL_PROVIDERS_MOCK"), anyString())).thenReturn("http://mock-providers");
-        service = new NotificationService(repository, objectMapper, kafkaTemplate, restTemplate, env);
+        service = new NotificationService(repository, objectMapper, kafkaTemplate, env);
     }
 
     @Test
